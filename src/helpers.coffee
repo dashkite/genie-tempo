@@ -1,5 +1,7 @@
 import Zephyr from "@dashkite/zephyr"
 import { command as exec } from "execa"
+import { generic } from "@dashkite/joy/generic"
+import * as Type from "@dashkite/joy/type"
 
 Scripts =
 
@@ -40,18 +42,33 @@ Repos =
 
   load: -> Zephyr.read ".repos.yaml"
 
-  find: ( name ) ->
-    repos = await do Repos.load
-    repos.find ( repo ) -> repo.name = name
+  find: do ({ find } = {}) ->
+
+    find = generic name: "Repos.find"
+
+    has = ( key ) -> ( value ) -> value[ key ]?
+
+    generic find, 
+      ( has "name" ),
+      ({ name }) ->
+        repos = await do Repos.load
+        repos.find ( repo ) -> repo.name = name
+
+    generic find,
+      ( has "tag" ),
+      ({ tag }) ->
+        repos = await do Repos.load
+        repos.filter ( repo ) -> 
+          repo.tags? && ( tag in repo.tags )
+    find
 
 Repo =
 
   run: ({ repo, script, args }) ->
-    # ensure the repo exists
-    if ( await Repos.find repo )?
-      Script.run { script, args, cwd: repo }
-    else
-      throw new Error "genie-tempo:
-        repo #{ repo } does not exist in this metarepo"
+    Script.run { script, args, cwd: repo.name }
 
-export { Scripts, Script, Repos, Repo }
+Rules = 
+
+  load: -> Zephyr.read ".rules.yaml"
+
+export { Scripts, Script, Repos, Repo, Rules }
