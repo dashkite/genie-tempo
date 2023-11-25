@@ -41,4 +41,4 @@ export default ( genie ) ->
     if rule.before?
       genie.before "tempo:#{ rule.before }", Task.run rule
     else if rule.on?
-      genie.on "tempo:#{ rule.on }", Task.run rule
+      genie.on rule.on, Task.run rule
