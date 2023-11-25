@@ -13,6 +13,12 @@ devDependencies:
   '@dashkite/amen':
     specifier: ^0.2.0
     version: 0.2.2
+  '@dashkite/amen-console':
+    specifier: ^0.0.2
+    version: 0.0.2
+  '@dashkite/assert':
+    specifier: ^0.1.4
+    version: 0.1.4
   '@dashkite/genie':
     specifier: ^0.5.11
     version: 0.5.11
@@ -2067,8 +2073,20 @@ packages:
       to-fast-properties: 2.0.0
     dev: true
 
+  /@dashkite/amen-console@0.0.2:
+    resolution: {integrity: sha512-16xkmucNi9enIjXI3Khf54mdvDFG7+QSeB4/Xlh3AGKjPCwSQppV/DTVgaI5mkYcYO3b9v6RGrEGYvaji4ynVw==}
+    dependencies:
+      chalk: 4.1.2
+    dev: true
+
   /@dashkite/amen@0.2.2:
     resolution: {integrity: sha512-bJBbRiIcQaKBT2A+EOltZaZMqGCptPw7rfSnTsu1AiicYWrXwe41zwo2W0a079OpJTLsH9v2vnU20xMCP9mQqA==}
+    dev: true
+
+  /@dashkite/assert@0.1.4:
+    resolution: {integrity: sha512-OLOzI/lA+EwCh6znSexGAG1V4bkaT5gU04xl6ApEluv5jICnHhinZ707MObu+jhVVJ9uHDDlG85O+Afn1aTQoQ==}
+    dependencies:
+      '@dashkite/joy': 0.3.16
     dev: true
 
   /@dashkite/atlas@0.6.1:
