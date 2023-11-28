@@ -52,7 +52,7 @@ Repos =
       ( has "name" ),
       ({ name }) ->
         repos = await do Repos.load
-        repos.find ( repo ) -> repo.name = name
+        repos.find ( repo ) -> repo.name == name
 
     generic find,
       ( has "tag" ),
@@ -71,4 +71,8 @@ Rules =
 
   load: -> Zephyr.read ".rules.yaml"
 
-export { Scripts, Script, Repos, Repo, Rules }
+Package =
+
+  load: ( name ) -> Zephyr.read "#{ name }/package.json"
+
+export { Scripts, Script, Repos, Repo, Rules, Package }

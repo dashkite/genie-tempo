@@ -34,6 +34,8 @@
     "@dashkite/genie-presets": "^0.6.0"
   },
   "dependencies": {
-    "@dashkite/zephyr": "^0.1.0"
+    "@dashkite/joy": "^0.3.16",
+    "@dashkite/zephyr": "^0.1.0",
+    "execa": "^5.1.1"
   }
 }
