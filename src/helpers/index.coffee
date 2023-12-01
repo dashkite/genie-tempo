@@ -1,7 +1,11 @@
+import process from "node:process"
+import Path from "node:path"
 import Zephyr from "@dashkite/zephyr"
 import { command as exec } from "execa"
 import { generic } from "@dashkite/joy/generic"
 import * as Type from "@dashkite/joy/type"
+import * as Arr from "@dashkite/joy/array"
+import log from "./logger"
 
 Scripts =
 
@@ -24,6 +28,7 @@ Scripts =
 Script = 
 
   prepare: ( name, args ) ->
+    args ?= []
     if ( script = await Scripts.find name )?
       Scripts.expand script, args
     else
@@ -31,6 +36,7 @@ Script =
         script #{ name } not found"
 
   run: ({ script, args, cwd }) ->
+    log.debug run: { script, cwd }
     command = await Script.prepare script, args
     result = await exec command, 
       { stdout: "pipe", stderr: "pipe", shell: true, cwd }
@@ -72,7 +78,40 @@ Rules =
   load: -> Zephyr.read ".rules.yaml"
 
 Package =
+  # TODO can we assume package.json is always in the root?
+  load: ( name ) -> Zephyr.read Path.join name, "package.json"
 
-  load: ( name ) -> Zephyr.read "#{ name }/package.json"
+XRL =
+  from : ( value ) ->
+    try
+      new URL value
 
-export { Scripts, Script, Repos, Repo, Rules, Package }
+Dependencies =
+
+  normalize: ( repos, dependencies = []) ->
+    Object.values dependencies
+      .map XRL.from
+      .filter ( url ) -> url?
+      # TODO check to be sure the path references cwd
+      #      we'd have to resolve relative to 
+      #      package.json directory
+      .map ( url ) -> Path.basename url.pathname
+      .map ( name ) -> 
+        repos.find ( repo ) -> repo.name == name
+      .filter ( repo ) -> repo?
+
+# import * as TK from "terminal-kit"
+
+# progress = ({ count }, f) ->
+#   bar = TK.terminal.progressBar
+#     title: "Progress"
+#     percent: true
+#     eta: true
+#     barChar: "◼︎"
+#     barHeadChar: "◼︎"
+#   counter = 0
+#   await f increment: -> bar.update ++counter / count
+#   TK.terminal "\n"
+
+export { Scripts, Script, Repos, Repo, Rules, Package, 
+  XRL, Dependencies }

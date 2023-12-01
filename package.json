@@ -22,6 +22,9 @@
   "files": [
     "build/node/src"
   ],
+  "bin": {
+    "gt": "./build/node/src/bin/gt.js"
+  },
   "scripts": {
     "test": "genie test",
     "build": "genie build"
@@ -30,12 +33,13 @@
     "@dashkite/amen": "^0.2.0",
     "@dashkite/amen-console": "^0.0.2",
     "@dashkite/assert": "^0.1.4",
-    "@dashkite/genie": "^0.5.11",
-    "@dashkite/genie-presets": "^0.6.0"
+    "@dashkite/genie": "link:../genie",
+    "@dashkite/genie-coffee": "link:../vedic-dolphin/genie-coffee"
   },
   "dependencies": {
     "@dashkite/joy": "^0.3.16",
     "@dashkite/zephyr": "^0.1.0",
+    "commander": "^11.1.0",
     "execa": "^5.1.1"
   }
 }
