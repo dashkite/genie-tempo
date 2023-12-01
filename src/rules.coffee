@@ -4,12 +4,11 @@ import * as Type from "@dashkite/joy/type"
 import * as Meta from "@dashkite/joy/metaclass"
 import { Script, Repos, Repo, Rules, Package, Dependencies } from "./helpers"
 import { Rules as Engine, Rule, Conditions, Actions } from "./engine"
-import log from "./helpers/logger"
+# import log from "./helpers/logger"
+import * as log from "@dashkite/kaiko"
 
-log.level = "debug"
-
-process.on "exit", ->
-  do log.dump
+# log.level = "debug"
+log.level "debug"
 
 peek = ( stack ) -> stack[ 0 ]
 push = ( stack, value ) -> stack.unshift value ; value
@@ -300,7 +299,8 @@ run = ( tasks ) ->
       total: state.repos.length
       missing: missing.map ({ name, score, failures }) ->
         { name, score, failures }
-
     }
+  log.write process.stdout
+
 
 export { run }

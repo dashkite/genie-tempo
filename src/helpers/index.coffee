@@ -5,7 +5,8 @@ import { command as exec } from "execa"
 import { generic } from "@dashkite/joy/generic"
 import * as Type from "@dashkite/joy/type"
 import * as Arr from "@dashkite/joy/array"
-import log from "./logger"
+# import log from "./logger"
+import * as log from "@dashkite/kaiko"
 
 Scripts =
 
