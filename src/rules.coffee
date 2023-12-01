@@ -1,4 +1,4 @@
-import Util from "node:util"
+import Path from "node:path"
 import * as Fn from "@dashkite/joy/function"
 import * as Type from "@dashkite/joy/type"
 import * as Meta from "@dashkite/joy/metaclass"
@@ -9,6 +9,17 @@ import { Rules as Engine, Rule, Conditions, Actions } from "./engine"
 import * as log from "@dashkite/kaiko"
 import FS from "node:fs"
 
+split = ( path ) -> path.split Path.sep
+
+getModule = ( path ) ->
+  components = path[ 1.. ].split Path.sep
+  i = components.lastIndexOf "node_modules"
+  if i > 0
+    if components[ i + 1 ].startsWith "@"
+      components[ i + 2 ]
+    else
+      components[ i + 1 ]
+
 peek = ( stack ) -> stack[ 0 ]
 push = ( stack, value ) -> stack.unshift value ; value
 pop = ( stack ) -> stack.shift()
@@ -16,6 +27,10 @@ remove = ( stack, target ) ->
   if ( index = stack.indexOf target ) > -1
     stack.splice index, 1
 rotate = ( stack ) -> stack.push stack.shift()
+promote = ( stack, target ) ->
+  if target in stack
+    remove stack, target
+    push stack, target
 sort = ( stack ) -> 
   stack.sort ( a, b ) ->
     _a = a.score - ( a.failures * 10 )
@@ -44,6 +59,7 @@ rules = Engine.make
     built: state.built[ 0 ]?.name
     ready: state.ready[ 0 ]?.name
     development: state.development[ 0 ]?.name
+    queue: state.queue[ 0 ]?.name
   
   logger: log
 
@@ -56,6 +72,8 @@ Conditions.register rules,
   "has pending": ({ pending }) -> pending.length > 0
 
   "nothing pending":  ({ pending }) -> pending.length == 0
+
+  "has queued": ({ queue }) -> queue.length > 0
 
   "is built": ({ scheduled, built }) ->
     ( peek scheduled ) in built
@@ -76,32 +94,35 @@ Conditions.register rules,
         .every ( repo ) -> repo in ready
 
   "has development dependencies that aren't in flight":
-    ({ scheduled, built }) ->
+    ({ scheduled, built, queue }) ->
       current = peek scheduled
       current
         ?.dependencies
         .development
         .some ( repo ) ->
           !( repo in scheduled ) &&
-            !( repo in built )
+            !( repo in built ) &&
+              !( repo in queue )
 
   "has production dependencies that aren't in flight":
-    ({ scheduled, built }) ->
+    ({ scheduled, built, queue }) ->
       ( peek scheduled )
         ?.dependencies
         .production
         .some ( repo ) -> 
           !( repo in scheduled ) &&
-            !( repo in built )
+            !( repo in built ) &&
+              !( repo in queue )
 
   "all production dependencies are in flight":
-    ({ scheduled, built }) ->
+    ({ scheduled, built, queue }) ->
       ( peek scheduled )
         ?.dependencies
         .production
         .every ( repo ) -> 
           ( repo in scheduled ) ||
-            ( repo in built )
+            ( repo in built ) ||
+              ( repo in queue )
 
 
   "all development dependencies are built":
@@ -131,26 +152,27 @@ Actions.register rules,
       push scheduled, pop pending
 
   "find next development dependency":
-    ({ built, scheduled, pending, development }) ->
+    ({ built, scheduled, pending, development, queue }) ->
       repo = ( peek scheduled )
         ?.dependencies
         .development
         .find ( repo ) ->
-          repo.score++ if ( repo in scheduled ) 
           !( repo in scheduled ) &&
-            !( repo in built )
+            !( repo in built ) &&
+              !( repo in queue )
       remove pending, repo
       push development, repo
       push scheduled, repo
 
   "find next production dependency":
-    ({ built, scheduled, pending, development }) ->
+    ({ built, scheduled, pending, development, queue }) ->
       repo = ( peek scheduled )
         ?.dependencies
         .production
         .find ( repo ) ->
           !( repo in scheduled ) &&
-            !( repo in built )
+            !( repo in built ) &&
+              !( repo in queue )
       remove pending, repo
       push development, repo
       push scheduled, repo
@@ -168,8 +190,33 @@ Actions.register rules,
       pop scheduled
       sort scheduled
   
-  "build a target":
-    ({ scheduled, built }) ->
+  "queue a target":
+    ({ scheduled, queue }) ->
+      push queue, pop scheduled
+  
+  "build queued targets":
+    ({ built, queue }) ->
+      console.log "build queued targets"
+      console.log queue.map ({ name }) -> name
+      Promise.all do -> 
+        until queue.length == 0
+          current = pop queue
+          do ( current ) ->
+            try
+              await Script.run
+                script: "build", 
+                cwd: current.name
+              log.debug built: current.name
+              push built, current
+            catch error
+              log.error error
+
+  "try a new target":
+    ({ scheduled, pending }) ->
+      push scheduled, pop pending
+
+  "attempt to build a target":
+    ({ repos, scheduled, built }) ->
       current = peek scheduled
       try
         await Script.run
@@ -178,27 +225,47 @@ Actions.register rules,
         log.debug built: current.name
         push built, peek scheduled
       catch error
-        log.error error
-
-  "try a new target":
-    ({ scheduled, pending }) ->
-      push scheduled, pop pending
-
-  "attempt to build a target":
-    ({ scheduled, built }) ->
-      current = peek scheduled
-      try
-        await Script.run
-          script: "build", 
-          cwd: current.name
-        log.debug built: current.name
-        push built, peek scheduled
-      catch
-        # ignore error
-        # reorder and hope for the best! :)
+        log.debug error
         current.failures++
         log.debug failures: current.failures
-        sort scheduled
+        if error.stderr?
+          console.log "found error"
+          { stderr } = error
+          if stderr.startsWith "Error: Cannot find module"
+            console.log "cannot find module"
+            if ( matches = stderr.match /'([^']+)'/ )?
+              console.log "has path"
+              [ _, path ] = matches
+              name = getModule path
+              console.log repo: name
+              repo = repos.find ( repo ) -> repo.name == name
+              if repo?
+                # effectively demote current
+                rotate scheduled
+                console.log "found repo"
+                if repo in scheduled
+                  console.log "promoting"
+                  promote scheduled, repo
+                  
+                else
+                  console.log "scheduling"
+                  push scheduled, repo
+              else
+                console.log "missing module is not a repo"
+                console.log error
+                # yolo
+                sort scheduled
+            else
+              console.log "unable to extract path"
+              console.log error
+              # yolo
+              sort scheduled
+          else
+            console.log "not stderr attached to error"
+            console.log error
+            # yolo
+            sort scheduled
+
 
 Engine.register rules,
 
@@ -238,9 +305,13 @@ Engine.register rules,
     "all production dependencies are in flight"
   ]
 
-  "build a target": [
+  "queue a target": [
     "has scheduled"
     "all development dependencies are ready"
+  ]
+
+  "build queued targets": [
+    "has queued"
   ]
 
   "try a new target": [
@@ -261,6 +332,7 @@ initialize = ->
   built = []
   ready = []
   development = []
+  queue = []
   for repo in repos
     repo.pkg = await Package.load repo.name
     repo.dependencies =
@@ -275,20 +347,23 @@ initialize = ->
     for tag in repo.tags
       tagged[ tag ] ?= []
       tagged[ tag ].push repo
-  state = { repos, tagged, pending,
-    scheduled, built, ready, development }
+  state = { repos, tagged, pending, scheduled,
+    built, ready, development, queue }
   state
 
 run = ( tasks, options ) ->
 
   # configure logging
+  if options.verbose
+    log.level "debug"
+  else
+    log.level "info"
   if options.logfile?
-    if options.verbose
-      log.level "debug"
-    else
-      log.level "info"
     stream = FS.createWriteStream options.logfile
     log.pipe stream
+  if options.follow
+    log.observe ( event ) ->
+      console.log event.data
 
   # initialize state
   state = await do initialize
@@ -298,6 +373,7 @@ run = ( tasks, options ) ->
     progress = Progress.make count: state.repos.length
     rules.events.on change: ( state ) ->
       progress.set state.built.length
+    progress.set 0
 
   # actually run the rules
   state = await Engine.run rules, state

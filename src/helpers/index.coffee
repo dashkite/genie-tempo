@@ -101,8 +101,6 @@ Dependencies =
         repos.find ( repo ) -> repo.name == name
       .filter ( repo ) -> repo?
 
-# import * as TK from "terminal-kit"
-
 Progress = 
   make: ({ count }) ->
     bar = TK.terminal.progressBar
@@ -113,7 +111,7 @@ Progress =
       barHeadChar: "◼︎"
     counter = 0
     TK.terminal "\n"
-    
+
     increment: -> bar.update ++counter / count
     set: ( counter ) -> bar.update counter / count
 

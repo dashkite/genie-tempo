@@ -11,7 +11,6 @@ Rule =
     dump: ( state ) -> state
     clone: structuredClone
 
-
 Rules =
 
   make: ( options ) ->

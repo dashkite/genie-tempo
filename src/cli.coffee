@@ -13,6 +13,7 @@ program
   .enablePositionalOptions()
   .description "build and deployment manager"
   .option "-l, --logfile <filename>", "Stream log to a file"
+  .option "-f, --follow", "Log to stderr"
   .option "-v, --verbose", "Perform debug logging"
   .option "-P, --no-progress", "Don't show progress bar"
   # .option "-x, --exclude <presets...>", 

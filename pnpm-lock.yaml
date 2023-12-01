@@ -12,8 +12,8 @@ dependencies:
     specifier: ^0.3.16
     version: 0.3.16
   '@dashkite/kaiko':
-    specifier: ^0.1.0
-    version: 0.1.0
+    specifier: ^0.2.0
+    version: 0.2.0
   '@dashkite/zephyr':
     specifier: ^0.1.0
     version: 0.1.0
@@ -82,8 +82,8 @@ packages:
   /@dashkite/joy@0.3.16:
     resolution: {integrity: sha512-dsU0us4j1Pb+zceoBvLbnZ2PbmULkJUtM2vtWLxKmoc1DE4w9SVTiPTe6JWvF0A0vk90ldv+Lc9qEA5x3O+DtQ==}
 
-  /@dashkite/kaiko@0.1.0:
-    resolution: {integrity: sha512-6np0DKrhvV+pdrxPQCSTtQrrxrBwBtTBSpMzgMcuMQ8JJ0VeyOTnOK6enJcVuIcVfFt8rleuuy0P0/rP/q2PxQ==}
+  /@dashkite/kaiko@0.2.0:
+    resolution: {integrity: sha512-gqD9Lv7tjKM0KwKHNARPjwcoPuBZDUbRTrjoU9LmbG65M+Fefoo0NPiAfXXUE9X+T6LXwUsNE9YxZmX2EcRR2Q==}
     dependencies:
       '@dashkite/writeme': file:../writeme
     dev: false
