@@ -343,6 +343,13 @@ initialize = ->
     repo.failures = 0
     repo.score = 0
     pending.push repo
+  # baseline score, done after we've normalized deps
+  for repo in repos
+    repo.score = repos
+      .filter ( _repo ) ->
+        repo in _repo.dependencies.development
+      .length
+  sort repos
   if repo.tags?
     for tag in repo.tags
       tagged[ tag ] ?= []
@@ -350,6 +357,11 @@ initialize = ->
   state = { repos, tagged, pending, scheduled,
     built, ready, development, queue }
   state
+
+build = ( repo ) ->
+  Script.run
+    script: "build", 
+    cwd: repo.name
 
 run = ( tasks, options ) ->
 
@@ -371,12 +383,44 @@ run = ( tasks, options ) ->
   # set up progress bar
   if options.progress
     progress = Progress.make count: state.repos.length
-    rules.events.on change: ( state ) ->
-      progress.set state.built.length
     progress.set 0
+  else
+    progress = set: ->
 
-  # actually run the rules
-  state = await Engine.run rules, state
+  repos = state.repos.length
+  built = 0
+  failed = 0
+  batch = 6 # max parallel builds
+  round = 0
+  until ( repos - ( built + failed ) == 0 )
+    log.debug round: round++
+    remaining = repos - ( built + failed )
+    batch = if remaining >= batch then batch else remaining
+    await do ({ queue } = {}) ->
+      queue = []
+      for repo in state.repos when repo not in state.built
+        log.debug queuing: repo.name
+        push queue, repo
+        if queue.length == batch
+          log.debug batch: batch
+          await Promise.all do ->
+            until queue.length == 0
+              repo = pop queue
+              log.debug building: repo.name
+              do ( repo ) ->
+                try
+                  await build repo
+                  push state.built, repo
+                  log.debug success: repo.name
+                  built = state.built.length
+                  progress.set built
+                catch
+                  repo.failures++
+                  log.debug failure: repo.name
+                  # if repo.failures >= 3
+                  #   console.log "too many failures for #{ repo.name }"
+                  #   state.failed.push repo
+                  #   failed = state.failed.length
 
   # reporting
   log.debug status: "finished!"
