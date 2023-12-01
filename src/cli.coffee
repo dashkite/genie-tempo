@@ -12,7 +12,9 @@ program
   .version pkg.version
   .enablePositionalOptions()
   .description "build and deployment manager"
-  # .option "-l, --list", "List commands"
+  .option "-l, --logfile <filename>", "Stream log to a file"
+  .option "-v, --verbose", "Perform debug logging"
+  .option "-P, --no-progress", "Don't show progress bar"
   # .option "-x, --exclude <presets...>", 
   #   "Exclude a preset from auto-loaded"
   # .option "-c, --halt", "Halt if a cycle is detected"

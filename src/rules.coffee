@@ -2,13 +2,12 @@ import Util from "node:util"
 import * as Fn from "@dashkite/joy/function"
 import * as Type from "@dashkite/joy/type"
 import * as Meta from "@dashkite/joy/metaclass"
-import { Script, Repos, Repo, Rules, Package, Dependencies } from "./helpers"
+import { Script, Repos, Repo, Rules, Package,
+  Dependencies, Progress } from "./helpers"
 import { Rules as Engine, Rule, Conditions, Actions } from "./engine"
 # import log from "./helpers/logger"
 import * as log from "@dashkite/kaiko"
-
-# log.level = "debug"
-log.level "debug"
+import FS from "node:fs"
 
 peek = ( stack ) -> stack[ 0 ]
 push = ( stack, value ) -> stack.unshift value ; value
@@ -280,12 +279,30 @@ initialize = ->
     scheduled, built, ready, development }
   state
 
-run = ( tasks ) ->
+run = ( tasks, options ) ->
+
+  # configure logging
+  if options.logfile?
+    if options.verbose
+      log.level "debug"
+    else
+      log.level "info"
+    stream = FS.createWriteStream options.logfile
+    log.pipe stream
+
+  # initialize state
   state = await do initialize
+
+  # set up progress bar
+  if options.progress
+    progress = Progress.make count: state.repos.length
+    rules.events.on change: ( state ) ->
+      progress.set state.built.length
+
+  # actually run the rules
   state = await Engine.run rules, state
-  # Engine.listen rules, change: ({ action }) -> 
-  #   if action == "build a target" || action == "attempt to build a target"
-  #     progress.increment()
+
+  # reporting
   log.debug status: "finished!"
   if state.built.length == state.repos.length
     log.debug success: 100
@@ -300,7 +317,5 @@ run = ( tasks ) ->
       missing: missing.map ({ name, score, failures }) ->
         { name, score, failures }
     }
-  log.write process.stdout
-
-
+  
 export { run }

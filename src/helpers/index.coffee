@@ -5,8 +5,8 @@ import { command as exec } from "execa"
 import { generic } from "@dashkite/joy/generic"
 import * as Type from "@dashkite/joy/type"
 import * as Arr from "@dashkite/joy/array"
-# import log from "./logger"
 import * as log from "@dashkite/kaiko"
+import * as TK from "terminal-kit"
 
 Scripts =
 
@@ -103,16 +103,19 @@ Dependencies =
 
 # import * as TK from "terminal-kit"
 
-# progress = ({ count }, f) ->
-#   bar = TK.terminal.progressBar
-#     title: "Progress"
-#     percent: true
-#     eta: true
-#     barChar: "◼︎"
-#     barHeadChar: "◼︎"
-#   counter = 0
-#   await f increment: -> bar.update ++counter / count
-#   TK.terminal "\n"
+Progress = 
+  make: ({ count }) ->
+    bar = TK.terminal.progressBar
+      title: "Progress"
+      percent: true
+      eta: true
+      barChar: "◼︎"
+      barHeadChar: "◼︎"
+    counter = 0
+    TK.terminal "\n"
+    
+    increment: -> bar.update ++counter / count
+    set: ( counter ) -> bar.update counter / count
 
 export { Scripts, Script, Repos, Repo, Rules, Package, 
-  XRL, Dependencies }
+  XRL, Dependencies, Progress }

@@ -1,5 +1,6 @@
 import * as Val from "@dashkite/joy/value"
 import * as Arr from "@dashkite/joy/array"
+import Events from "@dashkite/events"
 
 Rule =
   make: ({ conditions, action }) ->
@@ -19,7 +20,8 @@ Rules =
       options...
       rules: []
       conditions: {}
-      actions: {} 
+      actions: {}
+      events: Events.create()
     }
 
   register: ( engine, rules ) ->
@@ -42,7 +44,7 @@ Rules =
                 #{ name }"
     
   run: ( engine, state ) ->
-    await do ({ log, rule, before, changed } = {}) ->
+    await do ({ log, rule, saved, changed } = {}) ->
       log = engine.logger
       loop
         rule = engine.rules.find ({ conditions }) ->
@@ -52,15 +54,18 @@ Rules =
             result
         if rule?
           log.debug action: rule.action.name
-          before = state
+          saved = state
           state = engine.clone state
           await rule.action.apply state
-          changed = !( engine.equal before, state )
+          changed = !( engine.equal saved, state )
           log.debug { changed }
           log.debug 
-            before: engine.dump before
+            before: engine.dump saved
             after: engine.dump state
-          break unless changed
+          if changed
+            engine.events.dispatch "change", state
+          else
+            break
         else break
       state
 

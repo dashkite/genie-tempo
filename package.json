@@ -37,10 +37,12 @@
     "@dashkite/genie-coffee": "link:../vedic-dolphin/genie-coffee"
   },
   "dependencies": {
+    "@dashkite/events": "^0.1.0",
     "@dashkite/joy": "^0.3.16",
     "@dashkite/kaiko": "^0.1.0",
     "@dashkite/zephyr": "^0.1.0",
     "commander": "^11.1.0",
-    "execa": "^5.1.1"
+    "execa": "^5.1.1",
+    "terminal-kit": "^3.0.1"
   }
 }
