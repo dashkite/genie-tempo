@@ -8,6 +8,7 @@ import { Rules as Engine, Rule, Conditions, Actions } from "./engine"
 # import log from "./helpers/logger"
 import * as log from "@dashkite/kaiko"
 import FS from "node:fs"
+import FSP from "node:fs/promises"
 
 split = ( path ) -> path.split Path.sep
 
@@ -390,8 +391,14 @@ run = ( tasks, options ) ->
   repos = state.repos.length
   built = 0
   failed = 0
-  batch = 6 # max parallel builds
+  batch = 12 # max parallel builds
   round = 0
+  groups = await do ->
+    try
+      JSON.parse await FSP.readFile ".groups", "utf8"
+    catch
+      []
+
   until ( repos - ( built + failed ) == 0 )
     log.debug round: round++
     remaining = repos - ( built + failed )
@@ -402,6 +409,7 @@ run = ( tasks, options ) ->
         log.debug queuing: repo.name
         push queue, repo
         if queue.length == batch
+          groups.push group = []
           log.debug batch: batch
           await Promise.all do ->
             until queue.length == 0
@@ -411,6 +419,7 @@ run = ( tasks, options ) ->
                 try
                   await build repo
                   push state.built, repo
+                  group.push repo.name
                   log.debug success: repo.name
                   built = state.built.length
                   progress.set built
@@ -422,6 +431,8 @@ run = ( tasks, options ) ->
                   #   state.failed.push repo
                   #   failed = state.failed.length
 
+  await FSP.writeFile ".groups", JSON.stringify groups
+  
   # reporting
   log.debug status: "finished!"
   if state.built.length == state.repos.length
