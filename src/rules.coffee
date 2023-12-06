@@ -37,6 +37,8 @@ sort = ( stack ) ->
     _a = a.score - ( a.failures * 10 )
     _b = b.score - ( b.failures * 10 )
     if _a <= _b then 1 else -1
+slice = ( stack, start, skip ) ->
+  stack.slice start, start + skip
 
 # simple shallow array<repo> comparison
 equal = ( a, b ) ->
@@ -362,7 +364,13 @@ initialize = ->
 build = ( repo ) ->
   Script.run
     script: "build", 
-    cwd: repo.name
+    cwd: repo
+
+batches = ( list, size ) ->
+  i = 0
+  j = Math.ceil list.length / size
+  while i < j
+    yield slice list, ( i++ * size ), size
 
 run = ( tasks, options ) ->
 
@@ -371,9 +379,6 @@ run = ( tasks, options ) ->
     log.level "debug"
   else
     log.level "info"
-  if options.logfile?
-    stream = FS.createWriteStream options.logfile
-    log.pipe stream
   if options.follow
     log.observe ( event ) ->
       console.log event.data
@@ -388,65 +393,65 @@ run = ( tasks, options ) ->
   else
     progress = set: ->
 
-  repos = state.repos.length
-  built = 0
-  failed = 0
-  batch = 12 # max parallel builds
-  round = 0
+  # TODO check for missing repos in groups
+  #      add to first group if nec.
+  # TODO prune repos that are no longer in the metarepo
   groups = await do ->
     try
       JSON.parse await FSP.readFile ".groups", "utf8"
     catch
-      []
+      # the trivial group
+      [( state.repos.map ({ name }) -> name )]
 
-  until ( repos - ( built + failed ) == 0 )
-    log.debug round: round++
-    remaining = repos - ( built + failed )
-    batch = if remaining >= batch then batch else remaining
-    await do ({ queue } = {}) ->
-      queue = []
-      for repo in state.repos when repo not in state.built
-        log.debug queuing: repo.name
-        push queue, repo
-        if queue.length == batch
-          groups.push group = []
-          log.debug batch: batch
-          await Promise.all do ->
-            until queue.length == 0
-              repo = pop queue
-              log.debug building: repo.name
-              do ( repo ) ->
-                try
-                  await build repo
-                  push state.built, repo
-                  group.push repo.name
-                  log.debug success: repo.name
-                  built = state.built.length
-                  progress.set built
-                catch
-                  repo.failures++
-                  log.debug failure: repo.name
-                  # if repo.failures >= 3
-                  #   console.log "too many failures for #{ repo.name }"
-                  #   state.failed.push repo
-                  #   failed = state.failed.length
+  batch = 6 # max parallel builds
+  index = 0
+  built = 0
+  before = -1
+  while ( group = groups[ index ])? && ( built != before )
+    before = built
+    failures = []
+    for subgroup from batches group, batch
+      log.debug { subgroup }
+      await Promise.all do ->
+        for repo in subgroup
+          do ( repo ) ->
+            log.debug { repo }
+            try
+              await build repo
+              progress.set ++built
+            catch
+              log.debug failed: repo
+              failures.push repo
+
+    # demote failures
+    if failures.length > 0
+      log.debug { failures }
+      groups[ index + 1 ] ?= []
+      for repo in failures
+        log.debug demoting: repo
+        remove group, repo
+        groups[ index + 1 ].push repo
+    index++
 
   await FSP.writeFile ".groups", JSON.stringify groups
   
   # reporting
-  log.debug status: "finished!"
-  if state.built.length == state.repos.length
-    log.debug success: 100
-  else
-    missing = []
-    for repo in state.repos when !( repo in state.built )
-      missing.push repo
-    log.debug {
-      success: state.built.length / state.repos.length
-      built: state.built.length
-      total: state.repos.length
-      missing: missing.map ({ name, score, failures }) ->
-        { name, score, failures }
-    }
+  # log.debug status: "finished!"
+  # if state.built.length == state.repos.length
+  #   log.debug success: 100
+  # else
+  #   missing = []
+  #   for repo in state.repos when !( repo in state.built )
+  #     missing.push repo
+  #   log.debug {
+  #     success: state.built.length / state.repos.length
+  #     built: state.built.length
+  #     total: state.repos.length
+  #     missing: missing.map ({ name, score, failures }) ->
+  #       { name, score, failures }
+  #   }
   
+  if options.logfile?
+    log.write FS.createWriteStream options.logfile
+
 export { run }
